@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # This script performs a two-hit filter on single cell calling card reads.
-# It takes as one BAM file, the circularized Illumina SRT library. It outputs 
+# It takes as one BAM file, the circularized Illumina scCC library. It outputs 
 # a BAM file of reads filtered by the following criterion: for a given 
 # cell barcode and insertion site, there must be at least two different UMIs
 # corresponding to that insertion.
@@ -15,7 +15,7 @@ import sys
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-p", "--platform", type = str, required = True, choices = ["DS", "10x"])
-parser.add_argument("-c", "--circ", type = str, required = True, help = "Reads from circularized library")
+parser.add_argument("-i", "--input", type = str, required = True, help = "Reads from scCC library")
 parser.add_argument("-o", "--output", type = str, required = True, help = "Output filename")
 parser.add_argument("-v", "--verbose", action = "store_true")
 args = parser.parse_args()
@@ -41,7 +41,7 @@ def getTimeString():
 
 if __name__ == "__main__":
     # Open bamfile
-    bamfile = pysam.AlignmentFile(args.circ, 'rb')
+    bamfile = pysam.AlignmentFile(args.input, 'rb')
     # Master dictionary of barcode-insertion site-UMI connections
     cb_ins_umi = defaultdict(lambda: defaultdict(set))
     # Make a first pass through the bamfile
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     # Now, make a second pass through the bamfile, writing to the
     # output file only those reads that have a cell barcode 
     # and insertion in cb_ins
-    bamfile = pysam.AlignmentFile(args.circ, 'rb')
+    bamfile = pysam.AlignmentFile(args.input, 'rb')
     outfile = pysam.AlignmentFile(args.output, 'wb', template = bamfile)
     for read in bamfile:
         try:
