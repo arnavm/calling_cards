@@ -4,9 +4,9 @@ import pysam
 import sys
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--input", type = str, required = True, description = "Input BAM file")
-parser.add_argument("-b", "--barcodes", type = str, required = True, description = "List of barcodes (one per line)")
-parser.add_argument("-o", "--output", type = str, required = True, description = ("Output BAM file"))
+parser.add_argument("-i", "--input", type = str, required = True, help = "Input BAM file")
+parser.add_argument("-b", "--barcodes", type = str, required = True, help = "List of barcodes (one per line)")
+parser.add_argument("-o", "--output", type = str, required = True, help = ("Output BAM file"))
 args = parser.parse_args()
 
 
