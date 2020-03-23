@@ -5,14 +5,14 @@
 #SBATCH --job-name=trimFilter_10x
 #SBATCH --output=logs/trimFilter_10x_%a.out # standard out goes here
 #SBATCH --error=logs/trimFilter_10x_%a.err # standard error goes here
-#SBATCH --array=3-5
+#SBATCH --array=3
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=16000
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=amoudgil@wustl.edu
 
 # Initialize variables
-PROJECT_DIR=/scratch/rmlab/misc/2802_K562-HCT-HyPB-noTSO-2xBiotin
+PROJECT_DIR=/scratch/rmlab/1/calling_card_mammalian/4302_snow_sccc_031820_pilot
 PROJECT_OUT=$PROJECT_DIR"/output_and_analysis"
 PROJECT_RAW=$PROJECT_DIR"/raw"
 SAMPLE_LINE=$( sed -n ${SLURM_ARRAY_TASK_ID}p 10x_trimSheet.csv )
@@ -45,7 +45,6 @@ NEW_READ1=$PROJECT_OUT/$NEW_STEM"_S1_L001_R1_001.fastq.gz"
 NEW_READ2=$PROJECT_OUT/$NEW_STEM"_S1_L001_R2_001.fastq.gz"
 
 PB="^GGTTAA"
-SB="^TGTA"
 
 # Filter on, and trim, leading transposase sequence in read2's.
 cutadapt \
