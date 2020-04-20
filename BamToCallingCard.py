@@ -11,9 +11,9 @@ import pysam
 import sys
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-b", "--barcode", type = str, nargs = '+', required = False)
-parser.add_argument("-i", "--input", type = str, required = True)
-parser.add_argument("-o", "--output", type = str, required = True)
+parser.add_argument("-b", "--barcode", type=str, nargs='+', required=False)
+parser.add_argument("-i", "--input", type=str, required=True)
+parser.add_argument("-o", "--output", type=str, required=True)
 args = parser.parse_args()
 
 def getBarcodeString(read, tags):
