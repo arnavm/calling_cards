@@ -7,24 +7,27 @@
 # the coordinates of the bases immediately preceding the read and stores
 # that data in the "XI" tag. The program also includes the sequence of those
 # preceding bases in the "XZ" tag. This program is compatible with
-# piggyBac and SleepingBeauty transpositions.
+# piggyBac and Sleeping Beauty transpositions from calling card experiments,
+# as well as Tn5 insertions from ATAC-seq data.
 
 import argparse
 from functools import lru_cache
 import pysam
 import sys
 from twobitreader import TwoBitFile
+import warnings
 
 transposaseMotifs = {}
 transposaseMotifs["PB"] = "TTAA"
 transposaseMotifs["SB"] = "TA"
+transposaseMotifs["Tn5"] = True
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-t", "--transposase", type = str, required = True, choices = ["PB", "SB", "HelR"])
-parser.add_argument("-f", "--filter", action = "store_true")
-parser.add_argument("input", type = str)
-parser.add_argument("reference", type = str)
-parser.add_argument("output", type = str)
+parser.add_argument("-t", "--transposase", type=str, required=True, choices=["PB", "SB", "Tn5"])
+parser.add_argument("-f", "--filter", action="store_true")
+parser.add_argument("input", type=str)
+parser.add_argument("reference", type=str)
+parser.add_argument("output", type=str)
 args = parser.parse_args()
 
 ref = TwoBitFile(args.reference)
@@ -39,7 +42,12 @@ def fetchGenomicSequence(chromosome, start, end):
 # specified by the user. This practice is known as "currying" and prevents
 # having to re-initialize the insertSiteLength parameter during each iteration
 def makeInsertionSiteFunction(transposase):
-    insertSiteLength = len(transposaseMotifs[transposase])
+    # Special consideration for transposase like Tn5
+    if transposase == "Tn5":
+        insertSiteLength = 9
+    else:
+        insertSiteLength = len(transposaseMotifs[transposase])
+
     def insertionSiteTags(read):
         tags = {}
         # Check the orientation of the read:
@@ -50,10 +58,16 @@ def makeInsertionSiteFunction(transposase):
             # If the read is soft clipped at the end, correct the insertion coordinate
             if read.cigartuples[-1][0] == 4:
                 insert += read.cigartuples[-1][1]
-            # The span of the 4 bases preceding the insertion are:
-            # [insert, insert + 4)
-            tags["XI"] = "{0}|{1}|{2}|-".format(read.reference_name, insert, insert + insertSiteLength)
-            tags["XZ"] = fetchGenomicSequence(read.reference_name, insert, insert + insertSiteLength)
+            # The span of the bases preceding the insertion are:
+            # [insert, insert + insertSiteLength)
+            # Special consideration for Tn5, where we offset from the
+            # read end to map the transposase binding site.
+            if transposase == "Tn5":
+                tags["XI"] = "{0}|{1}|{2}|-".format(read.reference_name, insert - insertSiteLength, insert)
+                tags["XZ"] = fetchGenomicSequence(read.reference_name, insert - insertSiteLength, insert)
+            else:
+                tags["XI"] = "{0}|{1}|{2}|-".format(read.reference_name, insert, insert + insertSiteLength)
+                tags["XZ"] = fetchGenomicSequence(read.reference_name, insert, inset + insertSiteLength)
         else:
             # Read is in the forward orientation
             # The insertion point is at the start of the alignment
@@ -61,10 +75,15 @@ def makeInsertionSiteFunction(transposase):
             # If the read is soft clipped at the beginning, correct the insertion coordinate
             if read.cigartuples[0][0] == 4:
                 insert -= read.cigartuples[0][1]
-            # The span of the 4 bases preceding the insertions are:
-            # [insert - 4, insert)
-            tags["XI"] = "{0}|{1}|{2}|+".format(read.reference_name, insert - insertSiteLength, insert)
-            tags["XZ"] = fetchGenomicSequence(read.reference_name, insert - insertSiteLength, insert)
+            # The span of the bases preceding the insertions are:
+            # [insert - insertSiteLength, insert)
+            # Special consideration for Tn5, as above
+            if transposase == "Tn5":
+                tags["XI"] = "{0}|{1}|{2}|+".format(read.reference_name, insert, insert + insertSiteLength)
+                tags["XZ"] = fetchGenomicSequence(read.reference_name, insert, insert + insertSiteLength)
+            else:
+                tags["XI"] = "{0}|{1}|{2}|+".format(read.reference_name, insert - insertSiteLength, insert)
+                tags["XZ"] = fetchGenomicSequence(read.reference_name, insert - insertSiteLength, insert)
         return tags
     return insertionSiteTags
 
@@ -85,7 +104,11 @@ if __name__ == "__main__":
         else:
             # Mapped read
             # Calculate the insertion site
-            tags = getInsertionSiteTags(read)
+            try:
+                tags = getInsertionSiteTags(read)
+            except ValueError:
+                # This catches alignments at the end of the mitochondrial genome
+                continue
             # Add the insertion site to the read
             read.set_tag("XI", tags["XI"], "Z")
             read.set_tag("XZ", tags["XZ"], "Z")
@@ -94,9 +117,15 @@ if __name__ == "__main__":
                 read.set_tag("GS", "-", "Z")
             else:
                 read.set_tag("GS", "+", "Z")
+            # Set the query name tag (first field of the FASTQ record)
+            read.set_tag("QN", read.query_name.split(' ')[0], "Z")
             # If we are filtering reads, write read only if the bases 
             # preceding the read match the transposase insertion site motif
             if args.filter:
+                # Filtering should not be used with a motif-agnostic transposase
+                # like Tn5, as there is no way to validate the insertion event
+                if args.transposase == "Tn5":
+                    warnings.warn("The filter flag should not be used with Tn5/ATAC-seq data", UserWarning)
                 if tags["XZ"] == insertionMotif:
                     outfile.write(read)
             # Otherwise, write all reads to the output file
