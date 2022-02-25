@@ -67,7 +67,7 @@ def makeInsertionSiteFunction(transposase):
                 tags["XZ"] = fetchGenomicSequence(read.reference_name, insert - insertSiteLength, insert)
             else:
                 tags["XI"] = "{0}|{1}|{2}|-".format(read.reference_name, insert, insert + insertSiteLength)
-                tags["XZ"] = fetchGenomicSequence(read.reference_name, insert, inset + insertSiteLength)
+                tags["XZ"] = fetchGenomicSequence(read.reference_name, insert, insert + insertSiteLength)
         else:
             # Read is in the forward orientation
             # The insertion point is at the start of the alignment
