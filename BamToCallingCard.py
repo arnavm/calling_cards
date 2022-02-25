@@ -122,5 +122,6 @@ if __name__ == "__main__":
 
     # Clean up
     bamfile.close()
-    for _ in cache_list:
-        os.remove(_)
+    if args.cache:
+        for _ in cache_list:
+            os.remove(_)
